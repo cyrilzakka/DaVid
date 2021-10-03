@@ -25,7 +25,7 @@ pip install -r requirements.txt
 ```
 You can now launch DaVid with:
 ``` sh
-python3 DaVid.py
+python DaVid.py
 ```
 
 ## Download (Coming soon)
