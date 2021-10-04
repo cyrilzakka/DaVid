@@ -8,8 +8,8 @@ from cv2 import VideoCapture, imwrite, resize, CAP_PROP_FPS, CAP_PROP_FRAME_COUN
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, 
 							QVBoxLayout, QHBoxLayout, QPushButton, 
 							QSpacerItem, QSizePolicy, QSlider, 
-							QGroupBox, QLabel, QFileDialog, QProgressDialog, QDesktopWidget)
-from PyQt5.QtGui import QColor, QPixmap, QPainter
+							QGroupBox, QLabel, QFileDialog, QProgressDialog, QShortcut)
+from PyQt5.QtGui import QColor, QPixmap, QPainter, QKeySequence
 from PyQt5 import QtCore
 from PyQt5.QtCore import Qt, QPointF, QRectF, QLineF, QThread
 
@@ -64,10 +64,19 @@ class PlaybackControls(QWidget):
 
 		playback_layout = QHBoxLayout()
 
+
 		self.previousButton = QPushButton('Previous frame')
 		self.previousButton.clicked.connect(self.previous_frame)
+		self.prev_shortcut = QShortcut(QKeySequence("left"), self)
+		self.prev_shortcut.activated.connect(self.previous_frame)
+
+
 		self.nextButton = QPushButton('Next frame')
 		self.nextButton.clicked.connect(self.next_frame)
+		self.next_shortcut = QShortcut(QKeySequence("right"), self)
+		self.next_shortcut.activated.connect(self.next_frame)
+
+
 		playback_layout.addWidget(self.previousButton)
 		playback_layout.addWidget(self.nextButton)
 				
@@ -86,20 +95,16 @@ class PlaybackControls(QWidget):
 
 	@QtCore.pyqtSlot()  
 	def load_video(self):
-		path = QFileDialog.getOpenFileName(self, 'Open a file', '', 'Video Files (*.avi *.mp4 *.flv *.mov *.m4v)')
-		
-		if path != ('', ''):
-			filepath = path[0]
-			self.message['filepath'] = filepath
-			
-			# Load video information
-			vidcap = VideoCapture(filepath)
+		filename, _ = QFileDialog.getOpenFileName(self, 'Open a file', '', 'Video Files (*.avi *.mp4 *.flv *.mov *.m4v)')
+		if filename != '':
+			self.message['filepath'] = filename
+			vidcap = VideoCapture(filename)
 			fps = vidcap.get(CAP_PROP_FPS)  
 			frame_count = int(vidcap.get(CAP_PROP_FRAME_COUNT))
 			duration = frame_count/fps
-			_, vid_name  = filepath.rsplit('/', 1)
+			_, vid_name  = filename.rsplit('/', 1)
 
-			self.message['size'] = self.sizeof_fmt(os.path.getsize(filepath))
+			self.message['size'] = self.sizeof_fmt(os.path.getsize(filename))
 			self.message['duration'] = datetime.timedelta(seconds=round(duration%60))
 			self.message['count'] = str(frame_count)
 			self.message['curr_frame_index'] = 0
@@ -133,14 +138,14 @@ class PlaybackControls(QWidget):
 				self.progress.setCancelButton(None)
 				self.progress.setWindowModality(Qt.WindowModal)
 				self.progress.show()
-				self.extractImages(filepath, self.images_folder, suffix, self.annotation_file)
+				self.extractImages(filename, self.images_folder, suffix, self.annotation_file)
 
 			# Set first image
 			rec_index, rec_img = self.getRecentFrame()
 			first_img = os.path.join(self.images_folder, rec_img)
 			self.message['curr_image'] = first_img
 			self.message['curr_frame_index'] = rec_index
-		self.procStart.emit(self.message)
+			self.procStart.emit(self.message)
 
 	@QtCore.pyqtSlot()
 	def next_frame(self):
@@ -171,7 +176,7 @@ class PlaybackControls(QWidget):
 			_, current_frame = self.message['curr_image'].rsplit('/', 1)
 			df = pd.read_csv(self.annotation_file)
 			curr_index = df.loc[df['frame'] == current_frame].index[0]
-			df.iloc[curr_index] = pd.Series({'frame': current_frame, 'left_ang': self.data_row[0],'left_d': self.data_row[1],'right_ang': self.data_row[2],'r_ang': self.data_row[3],'cam_ang': self.data_row[4],'cam_d': self.data_row[5]})
+			df.iloc[curr_index] = pd.Series({'frame': current_frame, 'left_ang': self.data_row[0],'left_d': self.data_row[1],'right_ang': self.data_row[2],'right_d': self.data_row[3],'cam_ang': self.data_row[4],'cam_d': self.data_row[5]})
 			if curr_index - 1 >= 0:
 				prev_frame = df.iloc[curr_index - 1].frame
 				fimg = os.path.join(self.images_folder, prev_frame)
