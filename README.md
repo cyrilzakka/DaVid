@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/cyrilzakka/DaVid/blob/main/DaVid-banner@2x.png" alt="DaVid logo"/>
+  <img src="https://github.com/cyrilzakka/DaVid/blob/main/Assets/DaVid-banner@2x.png" alt="DaVid logo"/>
 </p>
 
 
