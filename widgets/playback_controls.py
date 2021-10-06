@@ -114,11 +114,9 @@ class PlaybackControls(QWidget):
 		# Write current annotations to csv
 		# Find current frame in pandas df and get the next index
 		if not (self.annotation_file == '' and self.images_folder == ''):
-			_, current_frame = self.message['curr_image'].rsplit('/', 1)
-			print("current frame:", current_frame)
+			current_frame = os.path.basename(self.message['curr_image'])
 			df = pd.read_csv(self.annotation_file)
 			curr_index = df.loc[df['frame'] == current_frame].index[0]
-			print("current index", curr_index)
 			df.iloc[curr_index] = pd.Series({'frame': current_frame, 'left_ang': self.data_row[0],'left_d': self.data_row[1],'right_ang': self.data_row[2],'r_ang': self.data_row[3],'cam_ang': self.data_row[4],'cam_d': self.data_row[5]})
 			if curr_index + 1 < len(df):
 				next_frame = df.iloc[curr_index + 1].frame
@@ -129,7 +127,6 @@ class PlaybackControls(QWidget):
 				next_frame = current_frame
 				fimg = os.path.join(self.images_folder, next_frame)
 				self.message['curr_image'] = fimg
-			print("Adding to csv")
 			df.to_csv(self.annotation_file, index = False)
 			self.procStart.emit(self.message)
 			self.playBackStart.emit(os.path.join(self.images_folder,next_frame))
@@ -138,7 +135,7 @@ class PlaybackControls(QWidget):
 	def previous_frame(self):
 		# Find current frame in pandas df and get the previous index
 		if not (self.annotation_file == '' and self.images_folder == ''):
-			_, current_frame = self.message['curr_image'].rsplit('/', 1)
+			current_frame = os.path.basename(self.message['curr_image'])
 			df = pd.read_csv(self.annotation_file)
 			curr_index = df.loc[df['frame'] == current_frame].index[0]
 			df.iloc[curr_index] = pd.Series({'frame': current_frame, 'left_ang': self.data_row[0],'left_d': self.data_row[1],'right_ang': self.data_row[2],'right_d': self.data_row[3],'cam_ang': self.data_row[4],'cam_d': self.data_row[5]})

@@ -7,7 +7,7 @@ class MainWindow(QMainWindow):
 
 	def __init__(self):
 		super(MainWindow, self).__init__()
-		self.setWindowTitle("DaVinci Action Annotator")
+		self.setWindowTitle("DaVid")
 		modular_layout = QVBoxLayout()
 		control_layout = QHBoxLayout()
 		
