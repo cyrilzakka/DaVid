@@ -6,7 +6,7 @@ from PyQt5.QtGui import QKeySequence
 import os, pathlib
 import pandas as pd 
 import cv2
-from cv2 import VideoCapture, imwrite, resize, CAP_PROP_FPS, CAP_PROP_FRAME_COUNT, INTER_AREA
+from cv2 import VideoCapture, resize, CAP_PROP_FPS, CAP_PROP_FRAME_COUNT, INTER_AREA
 import datetime
 
 
@@ -15,7 +15,7 @@ class PlaybackControls(QWidget):
 	Custom Qt Widget to group playback controls together.
 	"""
 	procStart = pyqtSignal(dict)
-	playBackStart = pyqtSignal(str)
+	playBackStart = pyqtSignal(tuple)
 
 	def __init__(self, *args, **kwargs):
 		super(PlaybackControls, self).__init__(*args, **kwargs)
@@ -70,6 +70,7 @@ class PlaybackControls(QWidget):
 			self.message['duration'] = datetime.timedelta(seconds=round(duration%60))
 			self.message['count'] = str(frame_count)
 			self.message['curr_frame_index'] = 0
+			self.message['overlay_frame_index'] = 1
 			vidcap.release()
 
 			# House cleaning
@@ -103,10 +104,16 @@ class PlaybackControls(QWidget):
 				self.extractImages(filename, self.images_folder, suffix, self.annotation_file)
 
 			# Set first image
-			rec_index, rec_img = self.getRecentFrame()
+			rec_index, rec_img, next_index, next_img = self.getRecentFrame()
 			first_img = os.path.join(self.images_folder, rec_img)
+			scnd_img = os.path.join(self.images_folder, next_img)
 			self.message['curr_image'] = first_img
 			self.message['curr_frame_index'] = rec_index
+			if rec_index >= 0:
+				self.message['overlay_frame_index'] = next_index
+				self.message['overlay_frame'] = scnd_img
+			else:
+				self.message['overlay_frame'] = first_img
 			self.procStart.emit(self.message)
 
 	@pyqtSlot()
@@ -123,13 +130,21 @@ class PlaybackControls(QWidget):
 				fimg = os.path.join(self.images_folder, next_frame)
 				self.message['curr_image'] = fimg
 				self.message['curr_frame_index'] = self.message['curr_frame_index'] + 1
+				if curr_index + 2 < len(df):
+					overlay_frame = df.iloc[curr_index + 2].frame
+					overlay_img = os.path.join(self.images_folder, overlay_frame)
+					self.message['overlay_frame'] = overlay_img
+					self.message['overlay_frame_index'] = self.message['curr_frame_index'] + 2
+				else:
+					self.message['overlay_frame'] = fimg
 			else:
 				next_frame = current_frame
 				fimg = os.path.join(self.images_folder, next_frame)
 				self.message['curr_image'] = fimg
+				self.message['overlay_frame'] = fimg
 			df.to_csv(self.annotation_file, index = False)
 			self.procStart.emit(self.message)
-			self.playBackStart.emit(os.path.join(self.images_folder,next_frame))
+			self.playBackStart.emit((os.path.join(self.images_folder,next_frame), self.message['overlay_frame']))
 
 	@pyqtSlot()  
 	def previous_frame(self):
@@ -139,6 +154,8 @@ class PlaybackControls(QWidget):
 			df = pd.read_csv(self.annotation_file)
 			curr_index = df.loc[df['frame'] == current_frame].index[0]
 			df.iloc[curr_index] = pd.Series({'frame': current_frame, 'left_ang': self.data_row[0],'left_d': self.data_row[1],'right_ang': self.data_row[2],'right_d': self.data_row[3],'cam_ang': self.data_row[4],'cam_d': self.data_row[5]})
+			self.message['overlay_frame'] = self.message['curr_image']
+			self.message['overlay_frame_index'] = self.message['curr_frame_index']
 			if curr_index - 1 >= 0:
 				prev_frame = df.iloc[curr_index - 1].frame
 				fimg = os.path.join(self.images_folder, prev_frame)
@@ -150,7 +167,7 @@ class PlaybackControls(QWidget):
 				self.message['curr_image'] = fimg
 			df.to_csv(self.annotation_file, index = False)
 			self.procStart.emit(self.message)
-			self.playBackStart.emit(os.path.join(self.images_folder,prev_frame))
+			self.playBackStart.emit((os.path.join(self.images_folder,prev_frame), self.message['overlay_frame']))
 
 	@pyqtSlot(tuple)
 	def receiveCamControls(self, values):
@@ -173,8 +190,10 @@ class PlaybackControls(QWidget):
 		# Check most recent frame without annotations or return first frame
 		df = pd.read_csv(self.annotation_file)
 		empty = df[df.left_ang.isna()]
-		if len(empty) > 0:	
-			return empty.index[0], empty.iloc[0]['frame']
+		if len(empty) == 1:
+			return empty.index[0], empty.iloc[0]['frame'], -1, ''
+		if len(empty) > 1:	
+			return empty.index[0], empty.iloc[0]['frame'], empty.index[1], empty.iloc[1]['frame']
 		else:
 			# TODO: Raise error. All frames have been annotated
 			return ''
